@@ -40,8 +40,7 @@ def rel_path(path):
 # csv file needs to have column headers "wl", "n", "wl", and "k"
 # All 4 columns must be the same length for the interpolation to work
 def import_nk_data(filename, material):
-    global nk_data
-    global imported_materials
+    global nk_data, imported_materials
     nk_raw_data = pd.read_csv(rel_path(filename))
     nk_raw_data = nk_raw_data.assign(material=material)
     nk_data = pd.concat([nk_data, nk_raw_data], ignore_index=True)
