@@ -24,8 +24,11 @@ imported_materials = [] # Initialize empty array for imported materials
 
 
 # List of wavelengths to be used for calculations, in um
-lambda_list = np.concatenate((np.arange(0.300, 1.700, 0.002), 
-                          np.arange(1.700, 15.001, 0.010)))
+lambda_list = np.concatenate((np.arange(0.300, 1.700, 0.002),
+                              np.arange(1.700, 15.001, 0.010)))
+tick_list   = np.concatenate((np.arange(0.3, 1., 0.1), np.arange(1, 16, 1)))
+tick_labels = [None, '0.4', None, None, '0.7', None, None, '1', '2', '3', '4',
+               '5', None, None, None, None, '10', None, None, None, None, '15']
 
 degree = np.pi/180  # Easy conversion between degrees and radians
 
@@ -79,15 +82,18 @@ def plot_nk_interp(material, *, plot_raw_data=True,
                  nk_data.loc[nk_data['material']==material, ['k']],'ro')
     plt.xlabel('Wavelength ($\mu$m)')
     plt.xlim(xlim)
+    plt.xscale('symlog', linthresh=1)
+    plt.xticks(tick_list, tick_labels)
     plt.ylabel('Material n,k')
     plt.legend()
+    plt.title(material)
     plt.show()
 
 
 # Lists are in order of light travel
-# th is incoming light angle relative to normal, in degrees!
+# th is incoming light angle relative to normal, in *degrees*
 def plot_atr(material_list, d_list, c_list, th, *,
-             xlim=[0, 15], **kwargs):
+             xlim=[min(lambda_list), max(lambda_list)], title=None, **kwargs):
     # Assumes equally weighted sum of s- and p-polarized light
     T_list = []                         # Initialize transmission list
     R_list = []                         # Initialize reflection list
@@ -116,11 +122,12 @@ def plot_atr(material_list, d_list, c_list, th, *,
     plt.plot(lambda_list, A_list, label='Absorption')
     plt.xlabel('Wavelength ($\mu$m)')
     plt.xlim(xlim)
-    # plt.xscale('log')
+    plt.xscale('symlog', linthresh=1)
+    plt.xticks(tick_list, tick_labels)
     plt.ylabel('Fraction of power')
     plt.ylim([0, 1])
-    # plt.title('')
     plt.legend()
+    plt.title(title)
     plt.show()
 
 # =============================================================================
@@ -128,27 +135,32 @@ def plot_atr(material_list, d_list, c_list, th, *,
 # =============================================================================
 
 
-import_nk_data('Refractive_indices/nk_PMMA.csv', 'PMMA')
-import_nk_data('Refractive_indices/nk_PC.csv', 'PC')
-import_nk_data('Refractive_indices/nk_soda-lime-glass.csv', 'Glass')
-import_nk_data('Refractive_indices/nk_fused-silica.csv', 'Silica')
-import_nk_data('Refractive_indices/nk_ITO.csv', 'ITO')
-import_nk_data('Refractive_indices/nk_aWO3.csv', 'a-WO3')
-import_nk_data('Refractive_indices/nk_aLi0_06WO3.csv', 'a-Li0.06WO3')
-import_nk_data('Refractive_indices/nk_aLi0_18WO3.csv', 'a-Li0.18WO3')
-import_nk_data('Refractive_indices/nk_aLi0_34WO3.csv', 'a-Li0.34WO3')
-import_nk_data('Refractive_indices/n_air.csv', 'Air')
+import_nk_data('Refractive_indices/nk_PMMA.csv', 'PMMA')                # 0.4-19.94 um  !
+import_nk_data('Refractive_indices/nk_PC.csv', 'PC')                    # 0.4-19.94 um  !
+import_nk_data('Refractive_indices/nk_soda-lime-glass.csv', 'Glass')    # 0.31-80 um
+import_nk_data('Refractive_indices/nk_fused-silica.csv', 'Silica')      # 0.21-50 um
+import_nk_data('Refractive_indices/nk_ITO.csv', 'ITO')                  # 0.25-1 um     !!
+import_nk_data('Refractive_indices/nk_aWO3.csv', 'a-WO3')               # 0.3-2.5 um    !!
+import_nk_data('Refractive_indices/nk_aLi0_06WO3.csv', 'a-Li0.06WO3')   # 0.3-2.5 um    !!
+import_nk_data('Refractive_indices/nk_aLi0_18WO3.csv', 'a-Li0.18WO3')   # 0.3-2.5 um    !!
+import_nk_data('Refractive_indices/nk_aLi0_34WO3.csv', 'a-Li0.34WO3')   # 0.3-2.5 um    !!
+import_nk_data('Refractive_indices/n_air.csv', 'Air')                   # 0.23-14.1 um
 
 # Interpolate all the imported materials
 for material in imported_materials:
     interp_nk_data(material)
 
-plot_nk_interp('ITO', xlim=[0.3, 1.])
+# plot_nk_interp('ITO')
     
 # print(min(nk_interp['aWO3'].imag)) # Check min k value, ensure non-negative
 
-material_list = ['Air', 'ITO', 'Glass', 'Air'] # List of materials in order of stack
+material_list = ['Air', 'PMMA', 'Glass', 'Air'] # List of materials in order of stack
 d_list = [np.inf, 0.1, 400., np.inf]  # Thickness of each layer, in um
 c_list = ['i', 'c', 'i', 'i']          # 'c' for coherent, 'i' for incoherent layer
-plot_atr(material_list, d_list, c_list, 0)
-plot_atr(material_list, d_list, c_list, 0, xlim=[0.3, 1.0]) # Focuses on incoming solar radiation
+
+# Incoming light
+plot_atr(material_list, d_list, c_list, 0, title='Incoming light')
+# plot_atr(material_list, d_list, c_list, 0, xlim=[0.3, 1.0]) # Focuses on insolation
+
+# Outgoing light, uses [::-1] to reverse lists
+plot_atr(material_list[::-1], d_list[::-1], c_list[::-1], 0, title='Outgoing light')
