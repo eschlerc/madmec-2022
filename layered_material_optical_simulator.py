@@ -41,7 +41,6 @@ def rel_path(path):
 
 # Add n,k data about a given material to nk_data from filename
 # csv file needs to have column headers "wl", "n", "wl", and "k"
-# All 4 columns must be the same length for the interpolation to work
 def import_nk_data(filename, material):
     global nk_data, imported_materials
     nk_raw_data = pd.read_csv(rel_path(filename))
@@ -52,13 +51,14 @@ def import_nk_data(filename, material):
 
 # Interpolate to all the wavelength values given in lambda_list using
 # quadratic interpolation. Can handle n and k lists with different wavelengths
-# as input, as long as they have the same number of values.
+# as input.
 def interp_nk_data(material):
     # Look only at the data for desired material
+    # dropna() allows for processing of different length n and k data
     group = nk_data.loc[nk_data['material']==material]
-    n_interp = interp1d(group['wl'], group['n'], kind='quadratic', 
+    n_interp = interp1d(group['wl'].dropna(), group['n'].dropna(), kind='quadratic', 
                         bounds_error=False, fill_value='extrapolate')
-    k_interp = interp1d(group['wl.1'], group['k'], kind='quadratic',
+    k_interp = interp1d(group['wl.1'].dropna(), group['k'].dropna(), kind='quadratic',
                         bounds_error=False, fill_value='extrapolate')
     # Combine n and k into complex-valued refrac indices at each wavelength
     nk_interp[material] = (np.maximum(0,n_interp(lambda_list)) + 
@@ -81,19 +81,19 @@ def plot_nk_interp(material, *, plot_raw_data=True,
         plt.plot(nk_data.loc[nk_data['material']==material, ['wl.1']], 
                  nk_data.loc[nk_data['material']==material, ['k']],'ro')
     plt.xlabel('Wavelength ($\mu$m)')
-    plt.xlim(xlim)
     plt.xscale('symlog', linthresh=1)
     plt.xticks(tick_list, tick_labels)
+    plt.xlim(xlim)
     plt.ylabel('Material n,k')
     plt.legend()
     plt.title(material)
     plt.show()
 
 
+# Calculates A,T,R at each wavelength of interest for layer stack
 # Lists are in order of light travel
 # th is incoming light angle relative to normal, in *degrees*
-def plot_atr(material_list, d_list, c_list, th, *,
-             xlim=[min(lambda_list), max(lambda_list)], title=None, **kwargs):
+def calc_atr(material_list, d_list, c_list, th):
     # Assumes equally weighted sum of s- and p-polarized light
     T_list = []                         # Initialize transmission list
     R_list = []                         # Initialize reflection list
@@ -115,15 +115,26 @@ def plot_atr(material_list, d_list, c_list, th, *,
     # A = 1-T-R, calculate absorption
     A_list = np.ones(len(lambda_list))-T_list-R_list
     
+    return A_list, T_list, R_list
+
+
+# Plots results from calc_atr
+# Lists are in order of light travel
+# th is incoming light angle relative to normal, in *degrees*
+def plot_atr(material_list, d_list, c_list, th, *,
+             xlim=[min(lambda_list), max(lambda_list)], title=None, **kwargs):
+    
+    A_list, T_list, R_list = calc_atr(material_list, d_list, c_list, th)
+    
     # Plot
     plt.figure()
     plt.plot(lambda_list, T_list, label='Transmission')
     plt.plot(lambda_list, R_list, label='Reflection')
     plt.plot(lambda_list, A_list, label='Absorption')
     plt.xlabel('Wavelength ($\mu$m)')
-    plt.xlim(xlim)
     plt.xscale('symlog', linthresh=1)
     plt.xticks(tick_list, tick_labels)
+    plt.xlim(xlim)
     plt.ylabel('Fraction of power')
     plt.ylim([0, 1])
     plt.legend()
@@ -134,29 +145,34 @@ def plot_atr(material_list, d_list, c_list, th, *,
 # Run
 # =============================================================================
 
-
+# Import all n,k data
+import_nk_data('Refractive_indices/n_air.csv', 'Air')                   # 0.23-14.1 um
 import_nk_data('Refractive_indices/nk_PMMA.csv', 'PMMA')                # 0.4-19.94 um  !
 import_nk_data('Refractive_indices/nk_PC.csv', 'PC')                    # 0.4-19.94 um  !
 import_nk_data('Refractive_indices/nk_soda-lime-glass.csv', 'Glass')    # 0.31-80 um
+import_nk_data('Refractive_indices/nk_EagleXG.csv', 'Eagle XG')         # 0.19-1.69 um  !!
 import_nk_data('Refractive_indices/nk_fused-silica.csv', 'Silica')      # 0.21-50 um
 import_nk_data('Refractive_indices/nk_ITO.csv', 'ITO')                  # 0.25-1 um     !!
+import_nk_data('Refractive_indices/nk_TiO2.csv', 'TiO2')                # 0.12-125 um
 import_nk_data('Refractive_indices/nk_aWO3.csv', 'a-WO3')               # 0.3-2.5 um    !!
 import_nk_data('Refractive_indices/nk_aLi0_06WO3.csv', 'a-Li0.06WO3')   # 0.3-2.5 um    !!
 import_nk_data('Refractive_indices/nk_aLi0_18WO3.csv', 'a-Li0.18WO3')   # 0.3-2.5 um    !!
 import_nk_data('Refractive_indices/nk_aLi0_34WO3.csv', 'a-Li0.34WO3')   # 0.3-2.5 um    !!
-import_nk_data('Refractive_indices/n_air.csv', 'Air')                   # 0.23-14.1 um
+import_nk_data('Refractive_indices/nk_ins-VO2.csv', 'VO2-lowT')         # 0.3-15 um
+import_nk_data('Refractive_indices/nk_met-VO2.csv', 'VO2-highT')        # 0.3-15 um
 
 # Interpolate all the imported materials
 for material in imported_materials:
     interp_nk_data(material)
 
-# plot_nk_interp('ITO')
+plot_nk_interp('Eagle XG')
     
 # print(min(nk_interp['aWO3'].imag)) # Check min k value, ensure non-negative
 
-material_list = ['Air', 'PMMA', 'Glass', 'Air'] # List of materials in order of stack
-d_list = [np.inf, 0.1, 400., np.inf]  # Thickness of each layer, in um
-c_list = ['i', 'c', 'i', 'i']          # 'c' for coherent, 'i' for incoherent layer
+# Set up multilayer stack layout
+material_list = ['Air', 'TiO2', 'VO2-highT', 'Eagle XG', 'Air'] # List of materials from outside to inside
+d_list = [np.inf, 0.05, 0.05, 700., np.inf]  # Thickness of each layer, in um
+c_list = ['i', 'c', 'c', 'i', 'i']          # 'c' for coherent, 'i' for incoherent layer
 
 # Incoming light
 plot_atr(material_list, d_list, c_list, 0, title='Incoming light')
@@ -164,3 +180,25 @@ plot_atr(material_list, d_list, c_list, 0, title='Incoming light')
 
 # Outgoing light, uses [::-1] to reverse lists
 plot_atr(material_list[::-1], d_list[::-1], c_list[::-1], 0, title='Outgoing light')
+
+
+# Testing with ITO n,k model from Del Villar et al. 2010
+def ito_nk(wl):
+    om = 2*np.pi*3e8/(wl*1e-6)
+    return(np.sqrt(3.57 - 1.89e15**2/(om**2 + 1j*om/6.34e-15) + 0.49*5.61e15**2/(5.61e15**2 - om**2 - 1j*9.72e13*om)))
+
+plt.figure()
+plt.plot(lambda_list, ito_nk(lambda_list).real)
+plt.plot(lambda_list, ito_nk(lambda_list).imag)
+plt.plot(nk_data.loc[nk_data['material']=='ITO', ['wl']], 
+         nk_data.loc[nk_data['material']=='ITO', ['n']],'bo')
+plt.plot(nk_data.loc[nk_data['material']=='ITO', ['wl.1']], 
+         nk_data.loc[nk_data['material']=='ITO', ['k']],'ro')
+plt.xlabel('Wavelength ($\mu$m)')
+plt.xlim([0.3, 15])
+plt.xscale('symlog', linthresh=1)
+plt.xticks(tick_list, tick_labels)
+plt.ylabel('Material n,k')
+plt.ylim([0, 5])
+plt.title('ITO')
+plt.show()
