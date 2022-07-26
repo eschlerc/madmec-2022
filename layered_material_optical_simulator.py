@@ -62,19 +62,6 @@ def ito_nk_eqn(wl):
                    0.49*5.61e15**2/(5.61e15**2 - om**2 - 1j*9.72e13*om)))
 
 
-# Effective medium approximation based on Maxwell Garnet equation
-# Probably a poor approximation, but easy to implement
-# Used for small volume fraction of inclusions in a matrix
-# matrix_material: string name of matrix material from list of imported materials
-# inclusion_material: string name of inclusion material " "
-# vol_frac: volume fraction of inclusions
-def effective_medium(matrix_material, inclusion_material, vol_frac):
-    eps_matrix = nk_interp[matrix_material]**2
-    eps_inclusion = nk_interp[inclusion_material]**2
-    return np.sqrt(eps_matrix*(2*vol_frac*(eps_inclusion-eps_matrix)+eps_inclusion+2*eps_matrix)/
-                  (2*eps_matrix+eps_inclusion-vol_frac*(eps_inclusion-eps_matrix)))
-
-
 # Interpolate to all the wavelength values given in lambda_list using
 # quadratic interpolation. Can handle n and k lists with different wavelengths
 # as input.
@@ -91,6 +78,19 @@ def interp_nk_data(material):
     # Combine n and k into complex-valued refrac indices at each wavelength
     nk_interp[material] = (np.maximum(0,n_interp(lambda_list)) + 
                            1j*np.maximum(0,k_interp(lambda_list)))
+
+
+# Effective medium approximation based on Maxwell Garnet equation
+# Probably a poor approximation, but easy to implement
+# Used for small volume fraction of inclusions in a matrix
+# matrix_material: string name of matrix material from list of imported materials
+# inclusion_material: string name of inclusion material " "
+# vol_frac: volume fraction of inclusions
+def effective_medium(matrix_material, inclusion_material, vol_frac):
+    eps_matrix = nk_interp[matrix_material]**2
+    eps_inclusion = nk_interp[inclusion_material]**2
+    return np.sqrt(eps_matrix*(2*vol_frac*(eps_inclusion-eps_matrix)+eps_inclusion+2*eps_matrix)/
+                  (2*eps_matrix+eps_inclusion-vol_frac*(eps_inclusion-eps_matrix)))
 
 
 # Plot the n and k at each wavelength of interest for a given material.
@@ -189,7 +189,10 @@ import_nk_data('Refractive_indices/nk_aLi0_34WO3.csv', 'a-Li0.34WO3')   # 0.3-2.
 import_nk_data('Refractive_indices/nk_ins-VO2.csv', 'VO2-lowT')         # 0.3-15 um
 import_nk_data('Refractive_indices/nk_met-VO2.csv', 'VO2-highT')        # 0.3-15 um
 import_nk_data('Refractive_indices/nk_Ag.csv', 'Ag')                    # 0.27-24.9 um
+import_nk_data('Refractive_indices/nk_20pctAgNW.csv', '20%w/w AgNW')
 import_from_eqn(ito_nk_eqn, 'ITO_eqn')
+nk_interp['PMMA+0.02AgNW'] = effective_medium('PMMA', 'Ag', 0.02)         # 0.4-19.94 um  !
+
 
 # print(nk_data.loc[nk_data['material']=='Ag'])
 # Interpolate all the imported materials
@@ -197,16 +200,14 @@ for material in imported_materials:
     interp_nk_data(material)
 
 
-eff = effective_medium('PMMA', 'Ag', 0.1)
-eff.min()
-
+# Plotting effective medium approximation vs its components
 plt.figure()
 plt.plot(lambda_list, nk_interp['Ag'].real, 'b-', label='n Ag')
 plt.plot(lambda_list, nk_interp['Ag'].imag, 'b--', label='k Ag')
 plt.plot(lambda_list, nk_interp['PMMA'].real, 'r-', label='n PMMA')
 plt.plot(lambda_list, nk_interp['PMMA'].imag, 'r--', label='k PMMA')
-plt.plot(lambda_list, eff.real, 'k-', label='n$_{eff}$')
-plt.plot(lambda_list, eff.imag, 'k--', label='k$_{eff}$')
+plt.plot(lambda_list, nk_interp['PMMA+0.02AgNW'].real, 'k-', label='n$_{eff}$')
+plt.plot(lambda_list, nk_interp['PMMA+0.02AgNW'].imag, 'k--', label='k$_{eff}$')
 plt.xlabel('Wavelength ($\mu$m)')
 plt.xlim([0.3, 15])
 plt.xscale('symlog', linthresh=1)
@@ -214,19 +215,17 @@ plt.xticks(tick_list, tick_labels)
 plt.ylabel('Material n,k')
 plt.ylim([0, 5])
 plt.legend()
-plt.title('20% AgNW in PMMA')
+plt.title('2%v/v AgNW in PMMA')
 plt.show()
 
 
 plot_nk_interp('Ag')
 
-    
-# print(min(nk_interp['aWO3'].imag)) # Check min k value, ensure non-negative
 
 # Set up multilayer stack layout
-material_list = ['Air', 'Silica', 'VO2-lowT', 'Eagle XG', 'Air'] # List of materials from outside to inside
-d_list = [np.inf, 0.167, 0.04, 700., np.inf]  # Thickness of each layer, in um
-c_list = ['i', 'c', 'c', 'i', 'i']          # 'c' for coherent, 'i' for incoherent layer
+material_list = ['Air', 'ITO_eqn', 'Eagle XG', 'Air'] # List of materials from outside to inside
+d_list = [np.inf, 0.05, 700., np.inf]  # Thickness of each layer, in um
+c_list = ['i', 'c', 'i', 'i']          # 'c' for coherent, 'i' for incoherent layer
 
 # Incoming light
 plot_atr(material_list, d_list, c_list, 0, title='Incoming light')
