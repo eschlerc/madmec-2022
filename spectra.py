@@ -37,7 +37,7 @@ tick_labels = [None, '0.4', None, None, '0.7', None, None, '1', '2', '3', '4',
 # =============================================================================
 # Data imports
 # =============================================================================
-# AM1.5 global solar irradiance, normalized to am15_integral
+# AM1.5 global solar irradiance, W*m^-2*um^-1
 am15 = pd.read_csv(rel_path('Insolation/AM1_5.csv'), 
                      header=0, index_col=0).squeeze('columns')
 

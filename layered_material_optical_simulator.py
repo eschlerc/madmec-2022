@@ -6,11 +6,14 @@ Created on Wed Jul  6 09:21:09 2022
 """
 
 import os
+import sys
+sys.path.append('C:/Users/eschl/Dropbox (MIT)/MIT/_Grad/madmec-2022')
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import tmm   # Optical calculations -- "transfer matrix method"
+import spectra as spec
 
 # =============================================================================
 # Functions and initialization
@@ -191,7 +194,7 @@ import_nk_data('Refractive_indices/nk_met-VO2.csv', 'VO2-highT')        # 0.3-15
 import_nk_data('Refractive_indices/nk_Ag.csv', 'Ag')                    # 0.27-24.9 um
 import_nk_data('Refractive_indices/nk_20pctAgNW.csv', '20%w/w AgNW')
 import_from_eqn(ito_nk_eqn, 'ITO_eqn')
-nk_interp['PMMA+0.02AgNW'] = effective_medium('PMMA', 'Ag', 0.02)         # 0.4-19.94 um  !
+nk_interp['PMMA+0.02AgNW'] = effective_medium('PMMA', 'Ag', 0.02)       # 0.4-19.94 um  !
 
 
 # print(nk_data.loc[nk_data['material']=='Ag'])
